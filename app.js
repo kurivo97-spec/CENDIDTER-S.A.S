@@ -1,6 +1,7 @@
 /*
  * Script de lógica de la aplicación.
  * Versión segura conectada a Firebase.
+ * ¡MODIFICADO! Permite lectura pública de horarios.
  */
 
 // Variables de estado
@@ -83,24 +84,22 @@ function init() {
   });
 
   // Listener principal de autenticación de Firebase
-  // Esto se ejecuta cuando la página carga y cada vez que el estado de login cambia
   auth.onAuthStateChanged(user => {
     if (user) {
-      // El usuario ha iniciado sesión
       currentUser = user.email; // Guardamos el email del usuario
-      fetchPersonalData(); // Descargamos los datos del personal
     } else {
-      // El usuario ha cerrado sesión
       currentUser = null;
-      personal = []; // Limpiamos los datos
-      renderMainView(); // Renderizamos la vista (sin datos)
     }
-    toggleLoginPanel(false); // Ocultamos el panel de login
+    // Re-renderizar las vistas para mostrar/ocultar botones de admin
+    renderMainView();
+    if(selectedPerson) {
+      updateModal(); // Actualizar el modal si está abierto
+    }
   });
 
   // Renderizado inicial
   renderAreaCards(); // Renderizamos las tarjetas de área
-  renderMainView(); // Renderizamos la vista principal
+  fetchPersonalData(); // ¡MODIFICADO! Cargar datos para TODOS al iniciar
 
   // Actualizador de tiempo (cada 60 segundos)
   setInterval(() => {
@@ -114,9 +113,7 @@ function init() {
 // --- LÓGICA DE FIREBASE ---
 
 function fetchPersonalData() {
-  // Solo descargamos datos si el usuario está logueado
-  if (!currentUser) return;
-
+  // ¡MODIFICADO! Esta función ahora carga datos para todos.
   db.collection("personal").get().then(querySnapshot => {
       personal = []; // Vaciamos la lista local
       querySnapshot.forEach(doc => {
@@ -125,7 +122,7 @@ function fetchPersonalData() {
           personal.push(workerData);
       });
       console.log("Datos del personal cargados desde Firebase:", personal.length);
-      renderMainView(); // Volvemos a dibujar la vista principal
+      renderMainView(); // Volvemos a dibujar la vista principal con los datos
   }).catch(error => {
       console.error("Error al obtener los datos del personal: ", error);
       alert("No se pudieron cargar los datos. Revisa la consola.");
@@ -144,9 +141,9 @@ function handleLogin() {
   auth.signInWithEmailAndPassword(email, pass)
     .then(userCredential => {
       console.log('Inicio de sesión exitoso:', userCredential.user.email);
-      // El listener 'onAuthStateChanged' se encargará del resto
       usernameInput.value = '';
       passwordInput.value = '';
+      toggleLoginPanel(false); // Ocultar panel al loguearse
     })
     .catch(error => {
       console.error("Error de login:", error.message);
@@ -157,7 +154,7 @@ function handleLogin() {
 function handleLogout() {
   auth.signOut().then(() => {
     console.log('Cierre de sesión exitoso');
-    // El listener 'onAuthStateChanged' se encargará del resto
+    toggleLoginPanel(false); // Ocultar panel al desloguearse
   });
 }
 
@@ -220,7 +217,6 @@ function saveEdits() {
     editHorarios[d].forEach((block, idx) => {
       if (!selectedPerson.horarios[d]) selectedPerson.horarios[d] = [];
       if (block.inicio != null && block.fin != null) {
-        // Asegurarse de que el bloque exista
         if (!selectedPerson.horarios[d][idx]) {
           selectedPerson.horarios[d][idx] = {};
         }
@@ -253,14 +249,12 @@ function saveEdits() {
 
 
 // --- LÓGICA DE RENDERIZADO (VISTAS) ---
-// (Estas funciones son casi iguales a las de antes)
 
 function renderAreaCards() {
   areaContainer.innerHTML = '';
   AREAS.forEach(area => {
     const card = document.createElement('div');
     card.className = 'area-card';
-    // ... (código SVG de iconos) ...
     const iconGroup = document.createElement('div');
     iconGroup.className = 'area-icon-group';
     if (area === 'AREA DE SERVICIOS GENERALES') {
@@ -296,7 +290,6 @@ function renderAreaCards() {
       iconGroup.appendChild(monitor);
     }
     card.appendChild(iconGroup);
-    // ... (fin código SVG) ...
     const nameSpan = document.createElement('span');
     nameSpan.textContent = area;
     card.appendChild(nameSpan);
@@ -306,14 +299,7 @@ function renderAreaCards() {
 }
 
 function renderMainView() {
-  if (!currentUser) {
-    // Si no hay usuario, solo mostrar áreas, ocultar todo lo demás
-    areaSelection.style.display = 'block';
-    areaView.style.display = 'none';
-    return;
-  }
-
-  // Si hay usuario logueado
+  // ¡MODIFICADO!
   if (!selectedArea) {
     areaSelection.style.display = 'block';
     areaView.style.display = 'none';
@@ -321,17 +307,14 @@ function renderMainView() {
     areaSelection.style.display = 'none';
     areaView.style.display = 'block';
     areaTitle.textContent = selectedArea;
-    addWorkerForm.style.display = 'block'; // Mostrar siempre el form si está logueado
+    // Mostrar/ocultar el formulario de agregar trabajador
+    addWorkerForm.style.display = currentUser ? 'block' : 'none'; 
     renderWorkerCards();
   }
 }
 
 function selectArea(area) {
-  if (!currentUser) {
-    alert("Debes iniciar sesión para ver los detalles del área.");
-    toggleLoginPanel(true);
-    return;
-  }
+  // ¡MODIFICADO! Ya no bloquea al usuario público.
   selectedArea = area;
   selectedPerson = null;
   editing = false;
@@ -383,9 +366,8 @@ function updateWorkerCards() {
   const workers = personal.filter(p => p.area === selectedArea);
   const cards = workerGrid.children;
   
-  // Asegurarse de que el número de tarjetas coincida con los trabajadores
   if (cards.length !== workers.length) {
-    renderWorkerCards(); // Redibujar si hay discrepancia
+    renderWorkerCards();
     return;
   }
 
@@ -418,10 +400,8 @@ function closeModal() {
 function updateModal() {
   if (!selectedPerson) return;
   
-  // Clonar horarios para edición segura
   const currentHorarios = editing ? JSON.parse(JSON.stringify(selectedPerson.horarios)) : selectedPerson.horarios;
   
-  // Aplicar cambios temporales de 'editHorarios' si estamos editando
   if (editing) {
     for (const d in editHorarios) {
       editHorarios[d].forEach((block, idx) => {
@@ -443,7 +423,8 @@ function updateModal() {
   const now = new Date();
   const days = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const today = days[now.getDay()];
-  const blocks = selectedPerson.horarios[today] || [];
+  const blocks = (selectedPerson.horarios && selectedPerson.horarios[today]) ? selectedPerson.horarios[today] : [];
+  
   scheduleSummaryEl.textContent = '';
   if (blocks.length > 0) {
     let summaryStr = blocks.map(b => `${formatTime(b.inicio)} - ${formatTime(b.fin)}`).join(' y ');
@@ -468,7 +449,7 @@ function updateModal() {
       timeRemainingEl.textContent = `${hrs}h ${mins}m restantes`;
     } else {
       progressBarEl.style.width = '0%';
-      timeRemainingEl.textContent = 'Error calculando turno';
+      timeRemainingEl.textContent = '';
     }
   } else {
     progressBarEl.style.width = '0%';
@@ -486,7 +467,8 @@ function updateModal() {
     editTelefonoInput.value = selectedPerson.telefono;
   } else {
     editControlsEl.style.display = 'none';
-    defaultControlsEl.style.display = currentUser ? 'flex' : 'none'; // Mostrar botón 'Editar' si está logueado
+    // ¡MODIFICADO! Esta lógica clave ya estaba correcta.
+    defaultControlsEl.style.display = currentUser ? 'flex' : 'none'; 
     document.getElementById('phoneEdit').style.display = 'none';
   }
 }
@@ -506,7 +488,7 @@ function renderScheduleTable(horarios, editable) {
     const dayCell = document.createElement('td');
     dayCell.textContent = capitalize(d);
     row.appendChild(dayCell);
-    const blocks = horarios[d] || [];
+    const blocks = (horarios && horarios[d]) ? horarios[d] : [];
     for (let i = 0; i < 2; i++) {
       const cell = document.createElement('td');
       const block = blocks[i];
@@ -553,7 +535,7 @@ function renderScheduleTable(horarios, editable) {
 function enterEditMode() {
   if (!selectedPerson) return;
   editing = true;
-  editHorarios = {}; // Reiniciar cambios temporales
+  editHorarios = {}; 
   updateModal();
 }
 
@@ -572,14 +554,12 @@ function handleTimeChange(e) {
   
   if (!editHorarios[day]) editHorarios[day] = [];
   if (!editHorarios[day][index]) {
-    // Copiar valores existentes para no perder el otro campo
-    const originalBlock = selectedPerson.horarios[day] ? selectedPerson.horarios[day][index] : null;
+    const originalBlock = (selectedPerson.horarios && selectedPerson.horarios[day]) ? selectedPerson.horarios[day][index] : null;
     editHorarios[day][index] = originalBlock ? { ...originalBlock } : { inicio: null, fin: null };
   }
   
   editHorarios[day][index][field] = value;
   
-  // Actualizar visualmente la tabla en tiempo real
   updateModal();
 }
 
@@ -589,10 +569,8 @@ function handleAddBlock(e) {
   const index = parseInt(e.target.dataset.index);
   
   if (!editHorarios[day]) editHorarios[day] = [];
-  // Añadir un bloque por defecto, p.ej. 8:00 - 12:00
   editHorarios[day][index] = { inicio: 8, fin: 12 };
 
-  // Actualizar visualmente la tabla
   updateModal();
 }
 
@@ -610,7 +588,6 @@ function toggleLoginPanel(show) {
       loginForm.style.display = 'flex';
       logoutSection.style.display = 'none';
       loginTitle.textContent = 'Iniciar sesión';
-      // Cambiar placeholder de usuario a email
       usernameInput.placeholder = "Email";
     }
   } else {
@@ -622,8 +599,8 @@ function toggleLoginPanel(show) {
 // --- FUNCIONES UTILITARIAS ---
 
 function getInitials(person) {
-  const n1 = person.nombre.split(' ')[0][0] || '';
-  const n2 = person.apellido.split(' ')[0][0] || '';
+  const n1 = (person.nombre && person.nombre.split(' ')[0][0]) || '';
+  const n2 = (person.apellido && person.apellido.split(' ')[0][0]) || '';
   return `${n1}${n2}`.toUpperCase();
 }
 
@@ -639,6 +616,12 @@ function getShiftInfo(person) {
   const days = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const today = days[dayIndex];
   const time = now.getHours() + now.getMinutes() / 60;
+  
+  // Comprobar si 'horarios' existe
+  if (!person.horarios) {
+    return { isOnShift: false, currentShiftEnd: null, nextShiftStart: null };
+  }
+  
   const daySchedules = person.horarios[today] || [];
   
   let isOnShift = false;
@@ -670,6 +653,7 @@ function formatTime(value) {
 }
 
 function capitalize(s) {
+  if (!s) return '';
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
