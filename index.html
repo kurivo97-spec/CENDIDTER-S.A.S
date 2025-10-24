@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Turnos Cendditer S.A.S.</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <img id="logo" src="logo grisa11.png" alt="Logo Cendditer">
+    <h1>Control de Turnos Cendditer S.A.S.</h1>
+    <button id="adminBtn" title="Administrar">⚙</button>
+  </header>
+
+  <div id="loginPanel">
+    <header>
+      <h2 id="loginTitle">Iniciar sesión</h2>
+      <button class="close-login">×</button>
+    </header>
+    <form id="loginForm">
+      <input type="text" id="usernameInput" placeholder="Usuario" required>
+      <input type="password" id="passwordInput" placeholder="Contraseña" required>
+      <button type="submit">Ingresar</button>
+    </form>
+    <div class="logout-section" style="display:none;">
+      <p id="loggedUser"></p>
+      <button id="logoutBtn">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div id="areaSelection" style="display:none;">
+      <div id="areaContainer"></div>
+    </div>
+    <div id="areaView" style="display:none;">
+      <a href="#" id="backLink">← Volver</a>
+      <h2 id="areaTitle"></h2>
+      <form id="addWorkerForm">
+        <h3 class="form-title">Agregar trabajador</h3>
+        <input type="text" id="newNombre" placeholder="Nombre" required>
+        <input type="text" id="newApellido" placeholder="Apellido" required>
+        <input type="text" id="newTelefono" placeholder="Teléfono" required>
+        <button type="submit">Agregar</button>
+      </form>
+      <div id="workerGrid"></div>
+    </div>
+  </div>
+
+  <div id="modalOverlay">
+    <div id="modal">
+      <button class="close-modal">×</button>
+      <div class="modal-initials" id="modalInitials"></div>
+      <h3 id="modalName"></h3>
+      <span id="modalStatus" class="modal-status"></span>
+      <div class="schedule-summary" id="scheduleSummary"></div>
+      <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="time-remaining" id="timeRemaining"></div>
+      <table id="scheduleTable"></table>
+      <div id="phoneEdit" style="display:none; margin-top:8px;">
+        <label for="editTelefono" style="font-size:0.8rem;">Teléfono:</label>
+        <input type="text" id="editTelefono" style="width:100%; padding:6px; margin-top:4px; border:1px solid #ccc; border-radius: var(--radius-sm); font-size:0.8rem;">
+      </div>
+      <div class="edit-controls" id="editControls" style="display:none;">
+        <button class="save">Guardar</button>
+        <button class="cancel">Cancelar</button>
+        <button class="delete" id="deleteWorkerBtn">Eliminar trabajador</button>
+      </div>
+      <div class="edit-controls" id="defaultControls" style="justify-content: center; display:none;">
+        <button id="editBtn" class="save">Editar horarios</button>
+      </div>
+    </div>
+ </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+  <script>
+ const firebaseConfig = {
+  apiKey: "AIzaSyD5gd9MAAstgcP6xe0tZQxaDcJymYGFrXU",
+  authDomain: "turnos-cendidter.firebaseapp.com",
+  projectId: "turnos-cendidter",
+  storageBucket: "turnos-cendidter.firebasestorage.app",
+  messagingSenderId: "482188978509",
+  appId: "1:482188978509:web:e829cc9885bd2e4bfa2f04",
+  measurementId: "G-8C4SK6FL15"
+};
+
+    // Inicializa Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+  </script>
+  
+  <script src="app.js"></script>
+</body>
+</html>
